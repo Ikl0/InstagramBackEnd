@@ -139,4 +139,4 @@ dist
 .svelte-kit
 
 # Keys for MongoDB database
-.keys.js
+keys.js
