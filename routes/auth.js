@@ -3,40 +3,77 @@ const router = express.Router()
 const mongoose = require('mongoose')
 const User = mongoose.model("User")
 
-router.get('/',(req,res)=>{
-    res.send("Hello")
+const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+const {JWT_SECRET} = require('../keys')
+const requireLogin = require('../middleware/requirelogin')
+
+
+router.get('/protected', requireLogin, (req,res)=>{
+    res.send("hello user")
 })
 
-router.post('/signup',(req,res)=>{
-    const {name,email,password} = req.body
+router.post('/signup', (req, res) => {
+    const { name, email, password } = req.body
 
-    if(!email || !password || !name)
-    {
-       return res.status(422).json({error:"Fill all fields."})
+    if (!email || !password || !name) {
+        return res.status(422).json({ error: "Fill all fields." })
     }
-User.findOne({email:email})
-.then((savedUser)=>{
-    if(savedUser){
-        return res.status(422).json({error:"User with this email is already exists."})
+    User.findOne({ email: email })
+        .then((savedUser) => {
+            if (savedUser) {
+                return res.status(422).json({ error: "User with this email is already exists." })
+            }
+
+            bcrypt.hash(password, 12)
+                .then(hashedpassword => {
+                    const user = new User({
+                        email,
+                        password:hashedpassword,
+                        name
+                    })
+
+                    user.save()
+                        .then(user => {
+                            res.json({ message: "saved successfully" })
+                        })
+                        .catch(error => {
+                            console.log(error)
+                        })
+                })
+        })
+        .catch(error => {
+            console.log(error)
+        })
+})
+
+router.post('/signin', (req,res)=>{
+    const {email,password} = req.body
+
+    if(!email || !password){
+       return res.status(422).json({error:"Write email or password"})
     }
+    User.findOne({email:email})
+    .then(savedUser=>{
+        if(!savedUser){
+          return res.status(422).json({error:"No such user"})
+        }
 
-    const user = new User({
-        email,
-        password,
-        name
+        bcrypt.compare(password,savedUser.password)
+        .then(doMatch=>{
+            if(doMatch){
+               // res.json({message:"successfully signed in"})
+                const token = jwt.sign({_id:savedUser._id}, JWT_SECRET)
+                res.json({token})
+            }
+            else{
+                return res.status(422).json({error:"Invalid Email or password"})
+            }
+        })
+        .catch(error=>{
+            console.log(error)
+        })
     })
-
-    user.save()
-    .then(user=>{
-        res.json({message:"saved successfully"})
-    })
-    .catch(error=>{
-        console.log(error)
-    })
-})
-.catch(error=>{
-    console.log(error)
-})
 })
 
 module.exports = router
