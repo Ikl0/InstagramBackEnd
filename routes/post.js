@@ -4,8 +4,20 @@ const mongoose = require('mongoose')
 const requireLogin = require('../middleware/requirelogin')
 const Post = mongoose.model("Post")
 
-router.get('/allpost', (req, res) => {
+router.get('/allpost', requireLogin, (req, res) => {
     Post.find()
+        .populate("postedBy", "_id name")
+        .populate("comments.postedBy", "_id name")
+        .then(posts => {
+            res.json({ posts })
+        })
+        .catch(error => {
+            console.log(error)
+        })
+})
+
+router.get('/allfollowposts', requireLogin, (req, res) => {
+    Post.find({ postedBy: { $in: req.user.following } })
         .populate("postedBy", "_id name")
         .populate("comments.postedBy", "_id name")
         .then(posts => {
@@ -52,14 +64,14 @@ router.put('/like', requireLogin, (req, res) => {
     }, {
         new: true
     })
-    .populate("postedBy","_id name")
-    .exec((error, result) => {
-        if (error) {
-            return res.status(422).json({ error: error })
-        } else {
-            res.json(result)
-        }
-    })
+        .populate("postedBy", "_id name")
+        .exec((error, result) => {
+            if (error) {
+                return res.status(422).json({ error: error })
+            } else {
+                res.json(result)
+            }
+        })
 })
 
 router.put('/dislike', requireLogin, (req, res) => {
@@ -68,14 +80,14 @@ router.put('/dislike', requireLogin, (req, res) => {
     }, {
         new: true
     })
-    .populate("postedBy","_id name")
-    .exec((error, result) => {
-        if (error) {
-            return res.status(422).json({ error: error })
-        } else {
-            res.json(result)
-        }
-    })
+        .populate("postedBy", "_id name")
+        .exec((error, result) => {
+            if (error) {
+                return res.status(422).json({ error: error })
+            } else {
+                res.json(result)
+            }
+        })
 })
 
 router.put('/comment', requireLogin, (req, res) => {
@@ -99,7 +111,7 @@ router.put('/comment', requireLogin, (req, res) => {
         })
 })
 
-router.delete('/deletepost/:postId', requireLogin, (req, res)=>{
+router.delete('/deletepost/:postId', requireLogin, (req, res) => {
     Post.findOne({ _id: req.params.postId })
         .populate("postedBy", "_id")
         .exec((error, post) => {
